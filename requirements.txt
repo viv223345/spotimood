@@ -1,0 +1,6 @@
+opencv-python
+numpy
+fer
+mtcnn
+python-dotenv
+requests
