@@ -25,7 +25,7 @@ def detect_mood(frame):
         return "neutral"
     
 def get_song_recommendation(mood):
-    prompt = f"Recommend one Spotify song for someone who is feeling {mood}. Only return the song name and artist in this format: 'Song Name by Artist'. No explanation or additional text."
+    prompt = f"Recommend one Spotify song for someone who is feeling {mood}. Only return the song name and artist in this format: 'Song Name by Artist'. No explanation or additional text. Dont repeat the same songs."
     payload = {
         "messages": [{"role": "user", "content": prompt}]
     }
