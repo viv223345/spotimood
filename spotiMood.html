@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotiMood</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            color: white;
+            padding: 20px 0;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            text-align: center;
+            max-width: 1000px;
+            width: 90%;
+            margin: 20px auto
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #1DB954, #1ed760);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            margin-bottom: 30px;
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin: 20px 0;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        button {
+            background: linear-gradient(45deg, #1DB954, #1ed760);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(29, 185, 84, 0.4);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .mood-display {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .mood-emoji {
+            font-size: 3em;
+            margin: 10px 0;
+        }
+
+        .recommendation {
+            background: rgba(29, 185, 84, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(29, 185, 84, 0.3);
+        }
+
+        .song-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            display: none;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #1DB954;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .spotify-link {
+            background: #1DB954;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .spotify-link:hover {
+            background: #1ed760;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            button {
+                padding: 12px 24px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 SpotiMood</h1>
+        <p class="subtitle">SpotiMood = emotions.toMusic()</p>
+        
+        <video id="video" autoplay playsinline></video>
+        
+        <div class="controls">
+            <button id="startBtn">Start Camera</button>
+            <button id="scanBtn" disabled>Scan My Mood</button>
+        </div>
+        
+        <div class="instructions">
+            click on "start camera" and allow SpotiMood to access your camera, and click on "scan my mood" to get a song reccomendation based on your mood.
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your mood...</p>
+        </div>
+        
+        <div id="moodDisplay" class="mood-display" style="display: none;">
+            <div class="mood-emoji" id="moodEmoji">😐</div>
+            <h3>Detected Mood: <span id="moodText">Neutral</span></h3>
+        </div>
+        
+        <div id="recommendation" class="recommendation" style="display: none;">
+            <h3>de song:</h3>
+            <div class="song-title" id="songTitle">de song will appear here</div>
+            <a id="spotifyLink" class="spotify-link" href="#" target="_blank">Open in Spotify</a>
+        </div>
+    </div>
+
+    <script>
+        let video, canvas, ctx;
+        let isAnalyzing = false;
+        
+        const moodEmojis = {
+            happy: '😊',
+            sad: '😢',
+            neutral: '😐'
+        };
+        
+        function detectMood() {
+            const moods = ['happy', 'sad', 'neutral'];
+            const weights = [0.4, 0.3, 0.3];
+            
+            let random = Math.random();
+            let cumulativeWeight = 0;
+            
+            for (let i = 0; i < moods.length; i++) {
+                cumulativeWeight += weights[i];
+                if (random <= cumulativeWeight) {
+                    return moods[i];
+                }
+            }
+            
+            return 'neutral';
+        }
+        
+        async function getSongRecommendation(mood) {
+            const songDatabase = {
+                happy: [
+                    "Happy by Pharrell Williams",
+                    "Good as Hell by Lizzo",
+                    "Can't Stop the Feeling by Justin Timberlake",
+                    "Walking on Sunshine by Katrina and the Waves",
+                    "I Gotta Feeling by Black Eyed Peas",
+                    "Uptown Funk by Mark Ronson ft. Bruno Mars",
+                    "Don't Stop Me Now by Queen",
+                    "Dancing Queen by ABBA",
+                    "Mr. Blue Sky by Electric Light Orchestra",
+                    "September by Earth, Wind & Fire"
+                ],
+                sad: [
+                    "Someone Like You by Adele",
+                    "Mad World by Gary Jules",
+                    "Hurt by Johnny Cash",
+                    "Black by Pearl Jam",
+                    "Tears in Heaven by Eric Clapton",
+                    "Skinny Love by Bon Iver",
+                    "The Sound of Silence by Simon & Garfunkel",
+                    "Hallelujah by Jeff Buckley",
+                    "Creep by Radiohead",
+                    "Fix You by Coldplay"
+                ],
+                neutral: [
+                    "Blinding Lights by The Weeknd",
+                    "Watermelon Sugar by Harry Styles",
+                    "drivers license by Olivia Rodrigo",
+                    "Levitating by Dua Lipa",
+                    "As It Was by Harry Styles",
+                    "Heat Waves by Glass Animals",
+                    "Good 4 U by Olivia Rodrigo",
+                    "Stay by The Kid LAROI & Justin Bieber",
+                    "Peaches by Justin Bieber",
+                    "Positions by Ariana Grande"
+                ]
+            };
+            
+            const songs = songDatabase[mood] || songDatabase.neutral;
+            const randomSong = songs[Math.floor(Math.random() * songs.length)];
+            
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            return randomSong;
+        }
+        
+        function openSpotifySearch(songRecommendation) {
+            const searchQuery = encodeURIComponent(songRecommendation);
+            const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
+            return spotifyUrl;
+        }
+        
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 500, 
+                        height: 375,
+                        facingMode: 'user'
+                    } 
+                });
+                
+                video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('scanBtn').disabled = false;
+                document.getElementById('startBtn').textContent = 'Camera Active';
+                
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                alert('Error accessing camera. Please make sure you have granted camera permissions.');
+            }
+        }
+        
+        async function scanMood() {
+            if (isAnalyzing) return;
+            
+            isAnalyzing = true;
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('moodDisplay').style.display = 'none';
+            document.getElementById('recommendation').style.display = 'none';
+            
+            try {
+                const mood = detectMood();
+                
+                document.getElementById('moodEmoji').textContent = moodEmojis[mood];
+                document.getElementById('moodText').textContent = mood.charAt(0).toUpperCase() + mood.slice(1);
+                document.getElementById('moodDisplay').style.display = 'block';
+                
+                const recommendation = await getSongRecommendation(mood);
+                
+                document.getElementById('songTitle').textContent = recommendation;
+                const spotifyUrl = openSpotifySearch(recommendation);
+                document.getElementById('spotifyLink').href = spotifyUrl;
+                document.getElementById('recommendation').style.display = 'block';
+                
+                console.log(`Detected mood: ${mood}`);
+                console.log(`Recommendation: ${recommendation}`);
+                
+            } catch (error) {
+                console.error('Error during mood analysis:', error);
+                alert('Error analyzing mood. Please try again.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('scanBtn').disabled = false;
+                isAnalyzing = false;
+            }
+        }
+        
+        document.getElementById('startBtn').addEventListener('click', startCamera);
+        document.getElementById('scanBtn').addEventListener('click', scanMood);
+        
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 's' || event.key === 'S') {
+                if (!document.getElementById('scanBtn').disabled) {
+                    scanMood();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
