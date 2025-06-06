@@ -236,53 +236,37 @@
             return 'neutral';
         }
         
-        async function getSongRecommendation(mood) {
-            const songDatabase = {
-                happy: [
-                    "Happy by Pharrell Williams",
-                    "Good as Hell by Lizzo",
-                    "Can't Stop the Feeling by Justin Timberlake",
-                    "Walking on Sunshine by Katrina and the Waves",
-                    "I Gotta Feeling by Black Eyed Peas",
-                    "Uptown Funk by Mark Ronson ft. Bruno Mars",
-                    "Don't Stop Me Now by Queen",
-                    "Dancing Queen by ABBA",
-                    "Mr. Blue Sky by Electric Light Orchestra",
-                    "September by Earth, Wind & Fire"
-                ],
-                sad: [
-                    "Someone Like You by Adele",
-                    "Mad World by Gary Jules",
-                    "Hurt by Johnny Cash",
-                    "Black by Pearl Jam",
-                    "Tears in Heaven by Eric Clapton",
-                    "Skinny Love by Bon Iver",
-                    "The Sound of Silence by Simon & Garfunkel",
-                    "Hallelujah by Jeff Buckley",
-                    "Creep by Radiohead",
-                    "Fix You by Coldplay"
-                ],
-                neutral: [
-                    "Blinding Lights by The Weeknd",
-                    "Watermelon Sugar by Harry Styles",
-                    "drivers license by Olivia Rodrigo",
-                    "Levitating by Dua Lipa",
-                    "As It Was by Harry Styles",
-                    "Heat Waves by Glass Animals",
-                    "Good 4 U by Olivia Rodrigo",
-                    "Stay by The Kid LAROI & Justin Bieber",
-                    "Peaches by Justin Bieber",
-                    "Positions by Ariana Grande"
-                ]
-            };
-            
-            const songs = songDatabase[mood] || songDatabase.neutral;
-            const randomSong = songs[Math.floor(Math.random() * songs.length)];
-            
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
-            return randomSong;
-        }
+		async function getSongRecommendation(mood) {
+		    const prompt = `Recommend one Spotify song for someone who is feeling ${mood}. Only return the song name and artist in this format: 'Song Name by Artist'. No explanation or additional text. Dont repeat the same songs.`;
+		    
+		    const payload = {
+		        messages: [{ role: "user", content: prompt }]
+		    };
+		    
+		    const headers = {
+		        "Content-Type": "application/json"
+		    };
+		    
+		    try {
+		        const response = await fetch("https://ai.hackclub.com/chat/completions", {
+		            method: "POST",
+		            headers: headers,
+		            body: JSON.stringify(payload)
+		        });
+		        
+		        if (response.ok) {
+		            const result = await response.json();
+		            const songRecommendation = result?.choices?.[0]?.message?.content || "";
+		            return songRecommendation;
+		        } else {
+		            console.error(`Error: ${response.status}, ${await response.text()}`);
+		            return "Error contacting recommendation service";
+		        }
+		    } catch (error) {
+		        console.error(`Error parsing response: ${error}`);
+		        return "Error getting recommendation";
+		    }
+		}
         
         function openSpotifySearch(songRecommendation) {
             const searchQuery = encodeURIComponent(songRecommendation);
