@@ -160,6 +160,17 @@
             transform: translateY(-1px);
         }
 
+        .debug {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.8em;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -203,13 +214,18 @@
         </div>
         
         <div id="recommendation" class="recommendation" style="display: none;">
-            <h3>de song:</h3>
-            <div class="song-title" id="songTitle">de song will appear here</div>
+            <h3>Your Song:</h3>
+            <div class="song-title" id="songTitle">Song will appear here</div>
             <a id="spotifyLink" class="spotify-link" href="#" target="_blank">Open in Spotify</a>
+        </div>
+
+        <div id="debug" class="debug">
+            <strong>Debug Info:</strong><br>
+            <div id="debugContent">Initializing...</div>
         </div>
     </div>
 
- 	<script src="./face-api.min.js"></script>
+    <script src="./face-api.min.js"></script>
 
     <script>
         let video, canvas, ctx;
@@ -223,38 +239,46 @@
             angry: '😠',
             surprised: '😮'
         };
+
+        function addDebug(message) {
+            const debugContent = document.getElementById('debugContent');
+            const timestamp = new Date().toLocaleTimeString();
+            debugContent.innerHTML += `<br>[${timestamp}] ${message}`;
+            debugContent.scrollTop = debugContent.scrollHeight;
+            console.log(message);
+        }
         
-		async function getSongRecommendation(mood) {
+        async function getSongRecommendation(mood) {
             const prompt = `Recommend one Spotify song for someone who is feeling ${mood}. Only return the song name and artist in this format: 'Song Name by Artist'. No explanation or additional text. Don't repeat the same songs.`;
-		    
-		    const payload = {
-		        messages: [{ role: "user", content: prompt }]
-		    };
-		    
-		    const headers = {
-		        "Content-Type": "application/json"
-		    };
-		    
-		    try {
-		        const response = await fetch("https://ai.hackclub.com/chat/completions", {
-		            method: "POST",
-		            headers: headers,
-		            body: JSON.stringify(payload)
-		        });
-		        
-		        if (response.ok) {
-		            const result = await response.json();
-		            const songRecommendation = result?.choices?.[0]?.message?.content || "";
-		            return songRecommendation;
-		        } else {
-		            console.error(`Error: ${response.status}, ${await response.text()}`);
-		            return "Error contacting recommendation service";
-		        }
-		    } catch (error) {
-		        console.error(`Error parsing response: ${error}`);
-		        return "Error getting recommendation";
-		    }
-		}
+            
+            const payload = {
+                messages: [{ role: "user", content: prompt }]
+            };
+            
+            const headers = {
+                "Content-Type": "application/json"
+            };
+            
+            try {
+                const response = await fetch("https://ai.hackclub.com/chat/completions", {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    const songRecommendation = result?.choices?.[0]?.message?.content || "";
+                    return songRecommendation;
+                } else {
+                    addDebug(`API Error: ${response.status}`);
+                    return "Error contacting recommendation service";
+                }
+            } catch (error) {
+                addDebug(`API Error: ${error.message}`);
+                return "Error getting recommendation";
+            }
+        }
         
         function openSpotifySearch(songRecommendation) {
             const searchQuery = encodeURIComponent(songRecommendation);
@@ -263,6 +287,7 @@
         }
         
         async function loadFaceAPIModels() {
+            addDebug('Loading Face-API models...');
             const MODEL_URL = './weights';
 
             try {
@@ -270,11 +295,11 @@
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
                 ]);
-                console.log('Face-api models loaded successfully');
+                addDebug('Face-API models loaded successfully');
                 modelsLoaded = true;
                 return true;
             } catch (error) {
-                console.error('Error loading face-api models:', error);
+                addDebug(`Error loading Face-API models: ${error.message}`);
                 modelsLoaded = false;
                 return false;
             }
@@ -282,6 +307,7 @@
 
         async function startCamera() {
             try {
+                addDebug('Requesting camera access...');
                 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
@@ -296,8 +322,10 @@
                 
                 video.onloadedmetadata = async function(e) {
                     video.play();
-
-                if (!modelsLoaded) {
+                    addDebug(`Video ready: ${video.videoWidth}x${video.videoHeight}`);
+                    
+                    // Load models after video is ready
+                    if (!modelsLoaded) {
                         await loadFaceAPIModels();
                     }
                     
@@ -306,97 +334,117 @@
                 
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('startBtn').textContent = 'Camera Active';
+                addDebug('Camera started successfully');
                 
             } catch (err) {
-                console.error('Error accessing camera:', err);
+                addDebug(`Camera error: ${err.message}`);
                 alert('Error accessing camera. Please make sure you have granted camera permissions.');
             }
         }
         
-		async function detectMood() {
-		    if (!video || !video.videoWidth || !video.videoHeight) {
-		        console.error('Video not ready');
-		        return 'neutral';
-		    }
-		
-		    try {
-		        const detections = await faceapi
+        async function detectMood() {
+            if (!video || !video.videoWidth || !video.videoHeight) {
+                addDebug('Video not ready for detection');
+                return 'neutral';
+            }
+
+            if (!modelsLoaded) {
+                addDebug('Models not loaded, using random mood');
+                const moods = ['happy', 'sad', 'neutral', 'angry', 'surprised'];
+                return moods[Math.floor(Math.random() * moods.length)];
+            }
+
+            try {
+                addDebug('Detecting faces...');
+                
+                const detections = await faceapi
                     .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ 
                         inputSize: 416, 
                         scoreThreshold: 0.5 
                     }))
-		            .withFaceExpressions();
-		    
-		        if (detections.length > 0) {
-		            const expressions = detections[0].expressions;
-		            let detectedMood = 'neutral';
-		            let highestValue = 0;
-		
-		            const emotionMapping = {
-		                'happy': 'happy',
-		                'sad': 'sad',
-		                'angry': 'angry',
-		                'surprised': 'surprised',
+                    .withFaceExpressions();
+            
+                addDebug(`Found ${detections.length} face(s)`);
+                
+                if (detections.length > 0) {
+                    const expressions = detections[0].expressions;
+                    let detectedMood = 'neutral';
+                    let highestValue = 0;
+
+                    const emotionMapping = {
+                        'happy': 'happy',
+                        'sad': 'sad',
+                        'angry': 'angry',
+                        'surprised': 'surprised',
                         'neutral': 'neutral',
                         'fearful': 'surprised',
                         'disgusted': 'angry'
-		            };
-		
-		            for (const [emotion, confidence] of Object.entries(expressions)) {
-		                if (confidence > highestValue && emotionMapping[emotion]) {
-		                    highestValue = confidence;
-                            detectedMood = emotionMapping[emotion];
-		                }
-		            }
-		
-		            return detectedMood;
-		        } else {
-		            console.log('No face detected');
-		            return 'neutral';
-		        }
-		    } catch (error) {
-		        console.error('Error detecting mood:', error);
-		        return 'neutral';
-		    }
-		}
+                    };
 
-		async function scanMood() {
-		    if (isAnalyzing) return;
-		    
-		    isAnalyzing = true;
-		    document.getElementById('scanBtn').disabled = true;
-		    document.getElementById('loading').style.display = 'block';
-		    document.getElementById('moodDisplay').style.display = 'none';
-		    document.getElementById('recommendation').style.display = 'none';
-		    
-		    try {
+                    // Debug expressions
+                    let expressionDebug = 'Expressions: ';
+                    for (const [emotion, confidence] of Object.entries(expressions)) {
+                        expressionDebug += `${emotion}: ${(confidence * 100).toFixed(1)}% `;
+                        if (confidence > highestValue && emotionMapping[emotion]) {
+                            highestValue = confidence;
+                            detectedMood = emotionMapping[emotion];
+                        }
+                    }
+                    addDebug(expressionDebug);
+                    addDebug(`Detected mood: ${detectedMood} (${(highestValue * 100).toFixed(1)}%)`);
+
+                    return detectedMood;
+                } else {
+                    addDebug('No face detected in frame');
+                    return 'neutral';
+                }
+            } catch (error) {
+                addDebug(`Face detection error: ${error.message}`);
+                return 'neutral';
+            }
+        }
+
+        async function scanMood() {
+            if (isAnalyzing) return;
+            
+            isAnalyzing = true;
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('moodDisplay').style.display = 'none';
+            document.getElementById('recommendation').style.display = 'none';
+            
+            try {
+                // Wait a moment for the video to stabilize
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
-		        const mood = await detectMood();
-		        
-		        document.getElementById('moodEmoji').textContent = moodEmojis[mood];
-		        document.getElementById('moodText').textContent = mood.charAt(0).toUpperCase() + mood.slice(1);
-		        document.getElementById('moodDisplay').style.display = 'block';
-		        
-		        const recommendation = await getSongRecommendation(mood);
-		        
-		        document.getElementById('songTitle').textContent = recommendation;
-		        const spotifyUrl = openSpotifySearch(recommendation);
-		        document.getElementById('spotifyLink').href = spotifyUrl;
-		        document.getElementById('recommendation').style.display = 'block';
-		        
-		        console.log(`Detected mood: ${mood}`);
-		        console.log(`Recommendation: ${recommendation}`);
-		        
-		    } catch (error) {
-		        console.error('Error during mood analysis:', error);
-		        alert('Error analyzing mood. Please try again.');
-		    } finally {
-		        document.getElementById('loading').style.display = 'none';
-		        document.getElementById('scanBtn').disabled = false;
-		        isAnalyzing = false;
-		    }
-		}
+                const mood = await detectMood();
+                
+                document.getElementById('moodEmoji').textContent = moodEmojis[mood];
+                document.getElementById('moodText').textContent = mood.charAt(0).toUpperCase() + mood.slice(1);
+                document.getElementById('moodDisplay').style.display = 'block';
+                
+                addDebug(`Getting song recommendation for mood: ${mood}`);
+                const recommendation = await getSongRecommendation(mood);
+                
+                document.getElementById('songTitle').textContent = recommendation;
+                const spotifyUrl = openSpotifySearch(recommendation);
+                document.getElementById('spotifyLink').href = spotifyUrl;
+                document.getElementById('recommendation').style.display = 'block';
+                
+                addDebug(`Recommendation: ${recommendation}`);
+                
+            } catch (error) {
+                addDebug(`Mood analysis error: ${error.message}`);
+                alert('Error analyzing mood. Please try again.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('scanBtn').disabled = false;
+                isAnalyzing = false;
+            }
+        }
+        
+        // Initialize
+        addDebug('SpotiMood initialized');
         
         document.getElementById('startBtn').addEventListener('click', startCamera);
         document.getElementById('scanBtn').addEventListener('click', scanMood);
